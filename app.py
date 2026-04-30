@@ -1,11 +1,17 @@
-from flask import Flask, request, jsonify
-import pickle
-import re
 import os
+import pickle
+from flask import Flask, request, jsonify
+import re
 
 app = Flask(__name__)
 
-model = pickle.load(open("model.pkl", "rb"))
+# ✅ حماية لو الملف مش موجود
+model_path = "model.pkl"
+
+if not os.path.exists(model_path):
+    raise Exception("model.pkl not found in deployment")
+
+model = pickle.load(open(model_path, "rb"))
 
 @app.route("/")
 def home():
@@ -19,7 +25,10 @@ def predict():
     features = extract_features(url)
     prediction = model.predict([features])[0]
 
-    return jsonify({"result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"})
+    return jsonify({
+        "result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"
+    })
+
 
 def extract_features(url):
     url = url.lower()
