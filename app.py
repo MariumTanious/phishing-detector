@@ -1,20 +1,22 @@
 from flask import Flask, request, jsonify, render_template
 import pickle
-import re
 import os
+import re
 
 app = Flask(__name__)
 
-# 🟢 Load model safely
+# ---------------- SAFE MODEL LOADING ----------------
+model = None
+
 try:
     model_path = os.path.join(os.path.dirname(__file__), "model.pkl")
-    model = pickle.load(open(model_path, "rb"))
-    print("Model loaded successfully")
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+    print("✅ Model loaded successfully")
 except Exception as e:
-    print("ERROR loading model:", e)
-    model = None
+    print("❌ Model loading failed:", e)
 
-# feature extraction
+# ---------------- FEATURE ENGINEERING ----------------
 def extract_features(url):
     url = url.lower()
 
@@ -40,14 +42,15 @@ def extract_features(url):
         1 if len(url) > 75 else 0
     ]
 
+# ---------------- ROUTES ----------------
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return "🚀 Phishing Detector is Running"
 
 @app.route("/predict", methods=["POST"])
 def predict():
     if model is None:
-        return jsonify({"result": "Model not loaded ❌"})
+        return jsonify({"error": "Model not loaded"}), 500
 
     data = request.get_json()
     url = data.get("url", "")
@@ -59,6 +62,7 @@ def predict():
         "result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"
     })
 
+# ---------------- RUN SERVER ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
