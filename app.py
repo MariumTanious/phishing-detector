@@ -1,19 +1,20 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import pickle
 import re
 import os
 
 app = Flask(__name__)
 
-# ========================
-# load model بطريقة آمنة
-# ========================
-model_path = os.path.join(os.path.dirname(__file__), "model.pkl")
-model = pickle.load(open(model_path, "rb"))
+#  Load model safely
+try:
+    model_path = os.path.join(os.path.dirname(__file__), "model.pkl")
+    model = pickle.load(open(model_path, "rb"))
+    print("Model loaded successfully")
+except Exception as e:
+    print("ERROR loading model:", e)
+    model = None
 
-# ========================
 # feature extraction
-# ========================
 def extract_features(url):
     url = url.lower()
 
@@ -39,20 +40,17 @@ def extract_features(url):
         1 if len(url) > 75 else 0
     ]
 
-# ========================
-# HOME ROUTE (مهم جدًا)
-# ========================
 @app.route("/")
 def home():
-    return "🚀 Phishing Detector is Running"
+    return render_template("index.html")
 
-# ========================
-# PREDICT API
-# ========================
 @app.route("/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({"result": "Model not loaded ❌"})
+
     data = request.get_json()
-    url = data["url"]
+    url = data.get("url", "")
 
     features = extract_features(url)
     prediction = model.predict([features])[0]
@@ -61,9 +59,6 @@ def predict():
         "result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"
     })
 
-# ========================
-# RUN SERVER (Render fix)
-# ========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
