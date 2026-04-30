@@ -1,30 +1,29 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 import pickle
-import os
 import re
+import os
 
 app = Flask(__name__)
 
-# ---------------- SAFE MODEL LOADING ----------------
-model = None
+model = pickle.load(open("model.pkl", "rb"))
 
-try:
-    model_path = os.path.join(os.path.dirname(__file__), "model.pkl")
-    with open(model_path, "rb") as f:
-        model = pickle.load(f)
-    print("✅ Model loaded successfully")
-except Exception as e:
-    print("❌ Model loading failed:", e)
+@app.route("/")
+def home():
+    return "🚀 Phishing Detector Running"
 
-# ---------------- FEATURE ENGINEERING ----------------
+@app.route("/predict", methods=["POST"])
+def predict():
+    data = request.get_json()
+    url = data["url"]
+
+    features = extract_features(url)
+    prediction = model.predict([features])[0]
+
+    return jsonify({"result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"})
+
 def extract_features(url):
     url = url.lower()
-
-    suspicious_words = [
-        'bank', 'secure', 'account', 'login',
-        'verify', 'update', 'free', 'bonus',
-        'paypal', 'signin', 'confirm'
-    ]
+    suspicious_words = ['bank','secure','account','login','verify','update','free','bonus','paypal','signin','confirm']
 
     return [
         len(url),
@@ -36,33 +35,12 @@ def extract_features(url):
         1 if 'https' in url else 0,
         1 if 'http://' in url else 0,
         1 if re.search(r'\d+\.\d+\.\d+\.\d+', url) else 0,
-        1 if any(word in url for word in suspicious_words) else 0,
-        sum(word in url for word in suspicious_words),
+        1 if any(w in url for w in suspicious_words) else 0,
+        sum(w in url for w in suspicious_words),
         len(re.findall(r'\d', url)),
         1 if len(url) > 75 else 0
     ]
 
-# ---------------- ROUTES ----------------
-@app.route("/")
-def home():
-    return "🚀 Phishing Detector is Running"
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    if model is None:
-        return jsonify({"error": "Model not loaded"}), 500
-
-    data = request.get_json()
-    url = data.get("url", "")
-
-    features = extract_features(url)
-    prediction = model.predict([features])[0]
-
-    return jsonify({
-        "result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"
-    })
-
-# ---------------- RUN SERVER ----------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
