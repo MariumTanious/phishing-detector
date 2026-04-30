@@ -1,13 +1,19 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 import pickle
 import re
+import os
 
 app = Flask(__name__)
 
-# load model
-model = pickle.load(open("model.pkl", "rb"))
+# ========================
+# load model بطريقة آمنة
+# ========================
+model_path = os.path.join(os.path.dirname(__file__), "model.pkl")
+model = pickle.load(open(model_path, "rb"))
 
+# ========================
 # feature extraction
+# ========================
 def extract_features(url):
     url = url.lower()
 
@@ -33,12 +39,16 @@ def extract_features(url):
         1 if len(url) > 75 else 0
     ]
 
-# 🔥 Home Page
+# ========================
+# HOME ROUTE (مهم جدًا)
+# ========================
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return "🚀 Phishing Detector is Running"
 
-# 🔥 API
+# ========================
+# PREDICT API
+# ========================
 @app.route("/predict", methods=["POST"])
 def predict():
     data = request.get_json()
@@ -51,5 +61,9 @@ def predict():
         "result": "Phishing ⚠️" if prediction == 1 else "Safe ✅"
     })
 
+# ========================
+# RUN SERVER (Render fix)
+# ========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
